@@ -3,7 +3,10 @@ import {
   ContextMenuEvent,
   InputHandler,
   MouseUpEvent,
+  ReplaySpeedChangeEvent,
+  TogglePauseShortcutEvent,
 } from "../src/client/InputHandler";
+import { ReplaySpeedMultiplier } from "../src/client/utilities/ReplaySpeedMultiplier";
 import { EventBus } from "../src/core/EventBus";
 
 class MockPointerEvent {
@@ -549,6 +552,65 @@ describe("InputHandler AutoUpgrade", () => {
       ).toBe(false);
 
       vi.useRealTimers();
+    });
+  });
+
+  describe("Desktop pause/speed shortcuts", () => {
+    beforeEach(() => {
+      localStorage.removeItem("settings.keybinds");
+    });
+
+    test("emits TogglePauseShortcutEvent when pause key is released", () => {
+      const mockEmit = vi.spyOn(eventBus, "emit");
+      inputHandler.initialize();
+
+      window.dispatchEvent(new KeyboardEvent("keyup", { code: "Space" }));
+
+      expect(
+        mockEmit.mock.calls.some(
+          (call) => call[0] instanceof TogglePauseShortcutEvent,
+        ),
+      ).toBe(true);
+    });
+
+    test("emits replay speed events for speed preset keys", () => {
+      const mockEmit = vi.spyOn(eventBus, "emit");
+      inputHandler.initialize();
+
+      window.dispatchEvent(
+        new KeyboardEvent("keyup", { code: "Digit1", shiftKey: true }),
+      );
+      window.dispatchEvent(
+        new KeyboardEvent("keyup", { code: "Digit2", shiftKey: true }),
+      );
+      window.dispatchEvent(
+        new KeyboardEvent("keyup", { code: "Digit3", shiftKey: true }),
+      );
+      window.dispatchEvent(
+        new KeyboardEvent("keyup", { code: "Digit0", shiftKey: true }),
+      );
+
+      expect(
+        mockEmit.mock.calls.some(
+          (call) =>
+            call[0] instanceof ReplaySpeedChangeEvent &&
+            call[0].replaySpeedMultiplier === ReplaySpeedMultiplier.normal,
+        ),
+      ).toBe(true);
+      expect(
+        mockEmit.mock.calls.some(
+          (call) =>
+            call[0] instanceof ReplaySpeedChangeEvent &&
+            call[0].replaySpeedMultiplier === ReplaySpeedMultiplier.fast,
+        ),
+      ).toBe(true);
+      expect(
+        mockEmit.mock.calls.some(
+          (call) =>
+            call[0] instanceof ReplaySpeedChangeEvent &&
+            call[0].replaySpeedMultiplier === ReplaySpeedMultiplier.fastest,
+        ),
+      ).toBe(true);
     });
   });
 });

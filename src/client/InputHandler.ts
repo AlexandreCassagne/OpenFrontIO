@@ -119,6 +119,8 @@ export class ReplaySpeedChangeEvent implements GameEvent {
   constructor(public readonly replaySpeedMultiplier: ReplaySpeedMultiplier) {}
 }
 
+export class TogglePauseShortcutEvent implements GameEvent {}
+
 export class CenterCameraEvent implements GameEvent {
   constructor() {}
 }
@@ -213,7 +215,8 @@ export class InputHandler {
     const isMac = Platform.isMac;
 
     this.keybinds = {
-      toggleView: "Space",
+      toggleView: "KeyV",
+      togglePause: "Space",
       coordinateGrid: "KeyM",
       centerCamera: "KeyC",
       moveUp: "KeyW",
@@ -413,6 +416,47 @@ export class InputHandler {
       if (e.code === this.keybinds.centerCamera) {
         e.preventDefault();
         this.eventBus.emit(new CenterCameraEvent());
+      }
+
+      if (e.code === this.keybinds.togglePause) {
+        e.preventDefault();
+        this.eventBus.emit(new TogglePauseShortcutEvent());
+      }
+
+      if (e.shiftKey && e.code === "Digit1") {
+        e.preventDefault();
+        this.eventBus.emit(
+          new ReplaySpeedChangeEvent(ReplaySpeedMultiplier.normal),
+        );
+        this.activeKeys.delete(e.code);
+        return;
+      }
+
+      if (e.shiftKey && e.code === "Digit2") {
+        e.preventDefault();
+        this.eventBus.emit(
+          new ReplaySpeedChangeEvent(ReplaySpeedMultiplier.fast),
+        );
+        this.activeKeys.delete(e.code);
+        return;
+      }
+
+      if (e.shiftKey && e.code === "Digit3") {
+        e.preventDefault();
+        this.eventBus.emit(
+          new ReplaySpeedChangeEvent(ReplaySpeedMultiplier.fastest),
+        );
+        this.activeKeys.delete(e.code);
+        return;
+      }
+
+      if (e.shiftKey && e.code === "Digit0") {
+        e.preventDefault();
+        this.eventBus.emit(
+          new ReplaySpeedChangeEvent(ReplaySpeedMultiplier.fastest),
+        );
+        this.activeKeys.delete(e.code);
+        return;
       }
 
       if (e.code === this.keybinds.buildCity) {

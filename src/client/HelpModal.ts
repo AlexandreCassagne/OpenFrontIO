@@ -42,7 +42,8 @@ export class HelpModal extends BaseModal {
 
     const isMac = Platform.isMac;
     return {
-      toggleView: "Space",
+      toggleView: "KeyV",
+      togglePause: "Space",
       coordinateGrid: "KeyM",
       centerCamera: "KeyC",
       moveUp: "KeyW",
@@ -269,10 +270,31 @@ export class HelpModal extends BaseModal {
                   </tr>
                   <tr class="hover:bg-white/5 transition-colors">
                     <td class="py-3 pl-4 border-b border-white/5">
+                      ${this.renderKey(keybinds.togglePause)}
+                    </td>
+                    <td class="py-3 border-b border-white/5 text-white/70">
+                      ${translateText("user_setting.toggle_pause")}
+                    </td>
+                  </tr>
+                  <tr class="hover:bg-white/5 transition-colors">
+                    <td class="py-3 pl-4 border-b border-white/5">
                       ${this.renderKey(keybinds.coordinateGrid)}
                     </td>
                     <td class="py-3 border-b border-white/5 text-white/70">
                       ${translateText("help_modal.action_coordinate_grid")}
+                    </td>
+                  </tr>
+                  <tr class="hover:bg-white/5 transition-colors">
+                    <td class="py-3 pl-4 border-b border-white/5">
+                      <div class="flex flex-wrap gap-2">
+                        ${this.renderKey(keybinds.shiftKey)}
+                        <span class="text-white/40 font-bold">+</span>
+                        ${this.renderKey("Digit1")} ${this.renderKey("Digit2")}
+                        ${this.renderKey("Digit3")} ${this.renderKey("Digit0")}
+                      </div>
+                    </td>
+                    <td class="py-3 border-b border-white/5 text-white/70">
+                      ${translateText("replay_panel.game_speed")}
                     </td>
                   </tr>
                   <tr class="hover:bg-white/5 transition-colors">

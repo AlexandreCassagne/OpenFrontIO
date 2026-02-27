@@ -533,6 +533,8 @@
     "view_options": "View Options",
     "toggle_view": "Toggle View",
     "toggle_view_desc": "Alternate view (terrain/countries)",
+    "toggle_pause": "Pause / Resume",
+    "toggle_pause_desc": "Toggle play/pause (singleplayer, replay, or lobby creator only).",
     "build_controls": "Build Controls",
     "build_city": "Build City",
     "build_city_desc": "Build a City under your cursor.",

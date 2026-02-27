@@ -4,6 +4,7 @@ import { EventBus } from "../../../core/EventBus";
 import { GameType } from "../../../core/game/Game";
 import { GameView } from "../../../core/game/GameView";
 import { crazyGamesSDK } from "../../CrazyGamesSDK";
+import { TogglePauseShortcutEvent } from "../../InputHandler";
 import { PauseGameIntentEvent, SendWinnerEvent } from "../../Transport";
 import { translateText } from "../../Utils";
 import { ImmunityBarVisibleEvent } from "./ImmunityTimer";
@@ -65,6 +66,11 @@ export class GameRightSidebar extends LitElement implements Layer {
     this.eventBus.on(SendWinnerEvent, () => {
       this.hasWinner = true;
       this.requestUpdate();
+    });
+    this.eventBus.on(TogglePauseShortcutEvent, () => {
+      if (this.canTogglePause()) {
+        this.onPauseButtonClick();
+      }
     });
 
     this.requestUpdate();
@@ -164,6 +170,12 @@ export class GameRightSidebar extends LitElement implements Layer {
     );
   }
 
+  private canTogglePause(): boolean {
+    const isReplayOrSingleplayer =
+      this._isSinglePlayer || this.game?.config()?.isReplay();
+    return isReplayOrSingleplayer || this.isLobbyCreator;
+  }
+
   render() {
     if (this.game === undefined) return html``;
 
@@ -200,7 +212,7 @@ export class GameRightSidebar extends LitElement implements Layer {
   maybeRenderReplayButtons() {
     const isReplayOrSingleplayer =
       this._isSinglePlayer || this.game?.config()?.isReplay();
-    const showPauseButton = isReplayOrSingleplayer || this.isLobbyCreator;
+    const showPauseButton = this.canTogglePause();
 
     return html`
       ${isReplayOrSingleplayer

@@ -21,7 +21,8 @@ interface FlagInputModalElement extends HTMLElement {
 const isMac = Platform.isMac;
 
 const DefaultKeybinds: Record<string, string> = {
-  toggleView: "Space",
+  toggleView: "KeyV",
+  togglePause: "Space",
   coordinateGrid: "KeyM",
   buildCity: "Digit1",
   buildFactory: "Digit2",
@@ -486,7 +487,7 @@ export class UserSettingModal extends BaseModal {
         action="toggleView"
         label=${translateText("user_setting.toggle_view")}
         description=${translateText("user_setting.toggle_view_desc")}
-        defaultKey="Space"
+        .defaultKey=${DefaultKeybinds.toggleView}
         .value=${this.getKeyValue("toggleView")}
         .display=${this.getKeyChar("toggleView")}
         @change=${this.handleKeybindChange}
@@ -496,9 +497,19 @@ export class UserSettingModal extends BaseModal {
         action="coordinateGrid"
         label=${translateText("user_setting.coordinate_grid_label")}
         description=${translateText("user_setting.coordinate_grid_desc")}
-        defaultKey=${DefaultKeybinds.coordinateGrid}
+        .defaultKey=${DefaultKeybinds.coordinateGrid}
         .value=${this.getKeyValue("coordinateGrid")}
         .display=${this.getKeyChar("coordinateGrid")}
+        @change=${this.handleKeybindChange}
+      ></setting-keybind>
+
+      <setting-keybind
+        action="togglePause"
+        label=${translateText("user_setting.toggle_pause")}
+        description=${translateText("user_setting.toggle_pause_desc")}
+        .defaultKey=${DefaultKeybinds.togglePause}
+        .value=${this.getKeyValue("togglePause")}
+        .display=${this.getKeyChar("togglePause")}
         @change=${this.handleKeybindChange}
       ></setting-keybind>
 
