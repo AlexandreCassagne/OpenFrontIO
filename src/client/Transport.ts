@@ -29,6 +29,7 @@ import { replacer } from "../core/Util";
 import { getPlayToken } from "./Auth";
 import { LobbyConfig } from "./ClientGameRunner";
 import { LocalServer } from "./LocalServer";
+import { hapticAttackSent } from "./utilities/Haptics";
 
 export class PauseGameIntentEvent implements GameEvent {
   constructor(public readonly paused: boolean) {}
@@ -473,6 +474,7 @@ export class Transport {
   }
 
   private onSendAttackIntent(event: SendAttackIntentEvent) {
+    hapticAttackSent();
     this.sendIntent({
       type: "attack",
       targetID: event.targetID,
@@ -481,6 +483,7 @@ export class Transport {
   }
 
   private onSendBoatAttackIntent(event: SendBoatAttackIntentEvent) {
+    hapticAttackSent();
     this.sendIntent({
       type: "boat",
       troops: event.troops,

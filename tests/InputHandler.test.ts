@@ -1,11 +1,23 @@
-import { AutoUpgradeEvent, InputHandler } from "../src/client/InputHandler";
+import {
+  AutoUpgradeEvent,
+  ContextMenuEvent,
+  InputHandler,
+  MouseUpEvent,
+} from "../src/client/InputHandler";
 import { EventBus } from "../src/core/EventBus";
 
 class MockPointerEvent {
   button: number;
   clientX: number;
   clientY: number;
+  x: number;
+  y: number;
   pointerId: number;
+  pointerType: string;
+  ctrlKey: boolean;
+  altKey: boolean;
+  shiftKey: boolean;
+  metaKey: boolean;
   type: string;
   preventDefault: () => void;
 
@@ -14,7 +26,14 @@ class MockPointerEvent {
     this.button = init.button;
     this.clientX = init.clientX;
     this.clientY = init.clientY;
+    this.x = init.x ?? init.clientX;
+    this.y = init.y ?? init.clientY;
     this.pointerId = init.pointerId;
+    this.pointerType = init.pointerType ?? "mouse";
+    this.ctrlKey = init.ctrlKey ?? false;
+    this.altKey = init.altKey ?? false;
+    this.shiftKey = init.shiftKey ?? false;
+    this.metaKey = init.metaKey ?? false;
     this.preventDefault = vi.fn();
   }
 }
@@ -460,6 +479,76 @@ describe("InputHandler AutoUpgrade", () => {
       // default remains when parsing fails
       expect((inputHandler as any).keybinds.moveUp).toBe("KeyW");
       spy.mockRestore();
+    });
+  });
+
+  describe("Touch input behavior", () => {
+    test("should emit MouseUpEvent for a short touch tap", () => {
+      const mockEmit = vi.spyOn(eventBus, "emit");
+
+      const downEvent = new PointerEvent("pointerdown", {
+        button: 0,
+        clientX: 150,
+        clientY: 250,
+        pointerId: 11,
+        pointerType: "touch",
+      });
+
+      const upEvent = new PointerEvent("pointerup", {
+        button: 0,
+        clientX: 150,
+        clientY: 250,
+        x: 150,
+        y: 250,
+        pointerId: 11,
+        pointerType: "touch",
+      });
+
+      inputHandler["onPointerDown"](downEvent);
+      inputHandler["onPointerUp"](upEvent);
+
+      expect(
+        mockEmit.mock.calls.some((call) => call[0] instanceof MouseUpEvent),
+      ).toBe(true);
+      expect(
+        mockEmit.mock.calls.some((call) => call[0] instanceof ContextMenuEvent),
+      ).toBe(false);
+    });
+
+    test("should emit ContextMenuEvent on long touch press and suppress tap action on release", () => {
+      vi.useFakeTimers();
+      const mockEmit = vi.spyOn(eventBus, "emit");
+
+      const downEvent = new PointerEvent("pointerdown", {
+        button: 0,
+        clientX: 200,
+        clientY: 300,
+        pointerId: 12,
+        pointerType: "touch",
+      });
+
+      const upEvent = new PointerEvent("pointerup", {
+        button: 0,
+        clientX: 200,
+        clientY: 300,
+        x: 200,
+        y: 300,
+        pointerId: 12,
+        pointerType: "touch",
+      });
+
+      inputHandler["onPointerDown"](downEvent);
+      vi.advanceTimersByTime(400);
+      inputHandler["onPointerUp"](upEvent);
+
+      expect(
+        mockEmit.mock.calls.some((call) => call[0] instanceof ContextMenuEvent),
+      ).toBe(true);
+      expect(
+        mockEmit.mock.calls.some((call) => call[0] instanceof MouseUpEvent),
+      ).toBe(false);
+
+      vi.useRealTimers();
     });
   });
 });

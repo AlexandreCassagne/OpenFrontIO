@@ -84,6 +84,7 @@ export class RadialMenu implements Layer {
   > = new Map();
 
   private selectedItemId: string | null = null;
+  private touchHoveredPath: SVGPathElement | null = null;
   private submenuHoverTimeout: number | null = null;
   private backButtonHoverTimeout: number | null = null;
   private navigationInProgress: boolean = false;
@@ -93,6 +94,57 @@ export class RadialMenu implements Layer {
   private centerButtonIconSize: number;
 
   private params: MenuElementParams | null = null;
+  private readonly onTouchMove = (event: TouchEvent) => {
+    if (!this.isVisible) {
+      return;
+    }
+
+    const touch = event.touches[0];
+    if (!touch) {
+      this.clearTouchHoveredPath();
+      return;
+    }
+
+    const path = this.getMenuPathAtPoint(touch.clientX, touch.clientY);
+    this.setTouchHoveredPath(path);
+    event.preventDefault();
+  };
+
+  private readonly onTouchEnd = (event: TouchEvent) => {
+    if (!this.isVisible) {
+      return;
+    }
+
+    const touch = event.changedTouches[0];
+    const path =
+      this.touchHoveredPath ??
+      (touch ? this.getMenuPathAtPoint(touch.clientX, touch.clientY) : null);
+
+    this.clearTouchHoveredPath();
+
+    if (path) {
+      path.dispatchEvent(
+        new MouseEvent("click", {
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    } else {
+      this.hideRadialMenu();
+      this.eventBus.emit(new CloseRadialMenuEvent());
+    }
+
+    event.preventDefault();
+  };
+
+  private readonly onTouchCancel = (event: TouchEvent) => {
+    this.clearTouchHoveredPath();
+    if (this.isVisible) {
+      this.hideRadialMenu();
+      this.eventBus.emit(new CloseRadialMenuEvent());
+    }
+    event.preventDefault();
+  };
 
   constructor(
     private eventBus: EventBus,
@@ -566,7 +618,6 @@ export class RadialMenu implements Layer {
       path.on("touchstart", function (event) {
         event.preventDefault();
         event.stopPropagation();
-        onClick(d, event);
       });
     });
   }
@@ -891,6 +942,7 @@ export class RadialMenu implements Layer {
     this.renderMenuItems(this.currentMenuItems, this.currentLevel);
     this.onCenterButtonHover(true);
     window.addEventListener("resize", this.handleResize);
+    this.setupTouchGestureListeners();
   }
 
   public hideRadialMenu() {
@@ -905,6 +957,7 @@ export class RadialMenu implements Layer {
     this.isVisible = false;
     this.selectedItemId = null;
     this.hideTooltip();
+    this.clearTouchHoveredPath();
 
     this.resetMenu();
     this.isTransitioning = false;
@@ -915,6 +968,7 @@ export class RadialMenu implements Layer {
 
     this.lastHideTime = Date.now();
     window.removeEventListener("resize", this.handleResize);
+    this.teardownTouchGestureListeners();
   }
 
   private handleCenterButtonClick() {
@@ -1075,6 +1129,54 @@ export class RadialMenu implements Layer {
       );
 
     this.updateCenterButtonState(this.centerButtonState);
+  }
+
+  private setupTouchGestureListeners() {
+    window.addEventListener("touchmove", this.onTouchMove, { passive: false });
+    window.addEventListener("touchend", this.onTouchEnd, { passive: false });
+    window.addEventListener("touchcancel", this.onTouchCancel, {
+      passive: false,
+    });
+  }
+
+  private teardownTouchGestureListeners() {
+    window.removeEventListener("touchmove", this.onTouchMove);
+    window.removeEventListener("touchend", this.onTouchEnd);
+    window.removeEventListener("touchcancel", this.onTouchCancel);
+  }
+
+  private getMenuPathAtPoint(x: number, y: number): SVGPathElement | null {
+    const hoveredElement = document.elementFromPoint(x, y);
+    if (!(hoveredElement instanceof Element)) {
+      return null;
+    }
+
+    const path = hoveredElement.closest("path.menu-item-path");
+    return path instanceof SVGPathElement ? path : null;
+  }
+
+  private setTouchHoveredPath(path: SVGPathElement | null) {
+    if (this.touchHoveredPath === path) {
+      return;
+    }
+
+    if (this.touchHoveredPath) {
+      this.touchHoveredPath.dispatchEvent(
+        new MouseEvent("mouseout", { bubbles: true }),
+      );
+    }
+
+    this.touchHoveredPath = path;
+
+    if (this.touchHoveredPath) {
+      this.touchHoveredPath.dispatchEvent(
+        new MouseEvent("mouseover", { bubbles: true }),
+      );
+    }
+  }
+
+  private clearTouchHoveredPath() {
+    this.setTouchHoveredPath(null);
   }
 
   private findMenuItem(id: string): MenuElement | undefined {

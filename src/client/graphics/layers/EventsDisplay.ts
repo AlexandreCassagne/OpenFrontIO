@@ -188,7 +188,10 @@ export class EventsDisplay extends LitElement implements Layer {
     this.events = [];
   }
 
-  init() {}
+  init() {
+    // Keep the stream collapsed by default on mobile to avoid blocking gameplay.
+    this._hidden = window.innerWidth < 1200;
+  }
 
   tick() {
     this.active = true;
@@ -818,7 +821,7 @@ export class EventsDisplay extends LitElement implements Layer {
         : html`
             <!-- Main Events Display -->
             <div
-              class="relative w-full min-[1200px]:bottom-4 min-[1200px]:right-4 z-50 min-[1200px]:w-96 backdrop-blur-sm"
+              class="relative w-full max-w-[92vw] ml-auto min-[1200px]:bottom-4 min-[1200px]:right-4 z-50 min-[1200px]:w-96 backdrop-blur-sm"
             >
               <!-- Button Bar -->
               <div
@@ -866,7 +869,7 @@ export class EventsDisplay extends LitElement implements Layer {
 
               <!-- Content Area -->
               <div
-                class="bg-gray-800/70 max-h-[30vh] overflow-y-auto w-full h-full min-[1200px]:rounded-b-xl events-container"
+                class="bg-gray-800/70 max-h-[22vh] sm:max-h-[30vh] overflow-y-auto w-full h-full min-[1200px]:rounded-b-xl events-container"
               >
                 <div>
                   <table

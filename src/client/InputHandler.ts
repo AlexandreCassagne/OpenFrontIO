@@ -160,9 +160,16 @@ export class InputHandler {
   private activeKeys = new Set<string>();
   private keybinds: Record<string, string> = {};
   private coordinateGridEnabled = false;
+  private touchLongPressTimer: NodeJS.Timeout | null = null;
+  private touchPointerId: number | null = null;
+  private touchPointerStartX = 0;
+  private touchPointerStartY = 0;
+  private touchLongPressTriggered = false;
 
   private readonly PAN_SPEED = 5;
   private readonly ZOOM_SPEED = 10;
+  private readonly TOUCH_LONG_PRESS_MS = 350;
+  private readonly TOUCH_LONG_PRESS_MOVE_TOLERANCE = 12;
 
   private readonly userSettings: UserSettings = new UserSettings();
 
@@ -491,6 +498,10 @@ export class InputHandler {
     this.pointers.set(event.pointerId, event);
 
     if (this.pointers.size === 1) {
+      if (event.pointerType === "touch") {
+        this.scheduleTouchLongPress(event);
+      }
+
       this.lastPointerX = event.clientX;
       this.lastPointerY = event.clientY;
 
@@ -499,6 +510,7 @@ export class InputHandler {
 
       this.eventBus.emit(new MouseDownEvent(event.clientX, event.clientY));
     } else if (this.pointers.size === 2) {
+      this.cancelTouchLongPress();
       this.lastPinchDistance = this.getPinchDistance();
     }
   }
@@ -512,6 +524,24 @@ export class InputHandler {
     if (event.button > 0) {
       return;
     }
+
+    if (event.pointerType === "touch") {
+      this.cancelTouchLongPress();
+      if (
+        this.touchLongPressTriggered &&
+        this.touchPointerId !== null &&
+        this.touchPointerId === event.pointerId
+      ) {
+        this.touchLongPressTriggered = false;
+        this.touchPointerId = null;
+        this.pointerDown = false;
+        this.pointers.clear();
+        event.preventDefault();
+        return;
+      }
+      this.touchPointerId = null;
+    }
+
     this.pointerDown = false;
     this.pointers.clear();
 
@@ -529,7 +559,7 @@ export class InputHandler {
       Math.abs(event.y - this.lastPointerDownY);
     if (dist < 10) {
       if (event.pointerType === "touch") {
-        this.eventBus.emit(new TouchEvent(event.x, event.y));
+        this.eventBus.emit(new MouseUpEvent(event.x, event.y));
         event.preventDefault();
         return;
       }
@@ -572,6 +602,23 @@ export class InputHandler {
     }
 
     this.pointers.set(event.pointerId, event);
+
+    if (event.pointerType === "touch") {
+      if (this.pointers.size > 1) {
+        this.cancelTouchLongPress();
+      } else {
+        this.cancelTouchLongPressOnMove(event);
+      }
+
+      if (
+        this.touchLongPressTriggered &&
+        this.touchPointerId !== null &&
+        event.pointerId === this.touchPointerId
+      ) {
+        event.preventDefault();
+        return;
+      }
+    }
 
     if (!this.pointerDown) {
       this.eventBus.emit(new MouseOverEvent(event.clientX, event.clientY));
@@ -649,7 +696,50 @@ export class InputHandler {
     if (this.moveInterval !== null) {
       clearInterval(this.moveInterval);
     }
+    this.cancelTouchLongPress();
     this.activeKeys.clear();
+  }
+
+  private scheduleTouchLongPress(event: PointerEvent) {
+    this.cancelTouchLongPress();
+    this.touchPointerId = event.pointerId;
+    this.touchPointerStartX = event.clientX;
+    this.touchPointerStartY = event.clientY;
+    this.touchLongPressTriggered = false;
+
+    this.touchLongPressTimer = setTimeout(() => {
+      if (!this.pointerDown || this.pointers.size !== 1) {
+        return;
+      }
+      if (this.touchPointerId !== event.pointerId) {
+        return;
+      }
+      this.touchLongPressTriggered = true;
+      this.eventBus.emit(
+        new ContextMenuEvent(this.touchPointerStartX, this.touchPointerStartY),
+      );
+    }, this.TOUCH_LONG_PRESS_MS);
+  }
+
+  private cancelTouchLongPress() {
+    if (this.touchLongPressTimer !== null) {
+      clearTimeout(this.touchLongPressTimer);
+      this.touchLongPressTimer = null;
+    }
+  }
+
+  private cancelTouchLongPressOnMove(event: PointerEvent) {
+    if (
+      this.touchPointerId === null ||
+      this.touchPointerId !== event.pointerId
+    ) {
+      return;
+    }
+    const dx = event.clientX - this.touchPointerStartX;
+    const dy = event.clientY - this.touchPointerStartY;
+    if (Math.sqrt(dx * dx + dy * dy) > this.TOUCH_LONG_PRESS_MOVE_TOLERANCE) {
+      this.cancelTouchLongPress();
+    }
   }
 
   isModifierKeyPressed(event: PointerEvent): boolean {

@@ -6,6 +6,7 @@ import {
 } from "../../../core/game/GameUpdates";
 import { GameView } from "../../../core/game/GameView";
 import { UserSettings } from "../../../core/game/UserSettings";
+import { hapticIncomingAttack } from "../../utilities/Haptics";
 import { Layer } from "./Layer";
 
 // Parameters for the alert animation
@@ -214,6 +215,7 @@ export class AlertFrame extends LitElement implements Layer {
         if (!inCooldown && !isRetaliation && !isSmallAttack) {
           this.seenAttackIds.add(attack.id);
           this.alertType = "land-attack";
+          hapticIncomingAttack();
           this.activateAlert();
         } else {
           // Still mark as seen so we don't alert later

@@ -252,6 +252,8 @@ async function createClientGame(
 }
 
 export class ClientGameRunner {
+  private static readonly ATTACK_TARGET_SEARCH_RADIUS = 3;
+
   private myPlayer: PlayerView | null = null;
   private isActive = false;
 
@@ -548,16 +550,17 @@ export class ClientGameRunner {
       if (myPlayer === null) return;
       this.myPlayer = myPlayer;
     }
-    this.myPlayer.actions(tile).then((actions) => {
-      if (actions.canAttack) {
+    this.resolveNearbyAttackTarget(tile, "either").then((target) => {
+      if (this.myPlayer === null || target === null) return;
+      if (target.actions.canAttack) {
         this.eventBus.emit(
           new SendAttackIntentEvent(
-            this.gameView.owner(tile).id(),
-            this.myPlayer!.troops() * this.renderer.uiState.attackRatio,
+            this.gameView.owner(target.tile).id(),
+            this.myPlayer.troops() * this.renderer.uiState.attackRatio,
           ),
         );
-      } else if (this.canAutoBoat(actions, tile)) {
-        this.sendBoatAttackIntent(tile);
+      } else if (this.canAutoBoat(target.actions, target.tile)) {
+        this.sendBoatAttackIntent(target.tile);
       }
     });
   }
@@ -644,14 +647,10 @@ export class ClientGameRunner {
       this.myPlayer = myPlayer;
     }
 
-    this.myPlayer.actions(tile).then((actions) => {
-      if (this.canBoatAttack(actions) === false) {
-        console.warn(
-          "Boat attack triggered but can't send Transport Ship to tile",
-        );
-        return;
+    this.resolveNearbyAttackTarget(tile, "boat").then((target) => {
+      if (target !== null) {
+        this.sendBoatAttackIntent(target.tile);
       }
-      this.sendBoatAttackIntent(tile);
     });
   }
 
@@ -667,15 +666,14 @@ export class ClientGameRunner {
       this.myPlayer = myPlayer;
     }
 
-    this.myPlayer.actions(tile).then((actions) => {
-      if (actions.canAttack) {
-        this.eventBus.emit(
-          new SendAttackIntentEvent(
-            this.gameView.owner(tile).id(),
-            this.myPlayer!.troops() * this.renderer.uiState.attackRatio,
-          ),
-        );
-      }
+    this.resolveNearbyAttackTarget(tile, "ground").then((target) => {
+      if (this.myPlayer === null || target === null) return;
+      this.eventBus.emit(
+        new SendAttackIntentEvent(
+          this.gameView.owner(target.tile).id(),
+          this.myPlayer.troops() * this.renderer.uiState.attackRatio,
+        ),
+      );
     });
   }
 
@@ -712,6 +710,59 @@ export class ClientGameRunner {
         this.myPlayer.troops() * this.renderer.uiState.attackRatio,
       ),
     );
+  }
+
+  private async resolveNearbyAttackTarget(
+    originTile: TileRef,
+    mode: "ground" | "boat" | "either",
+  ): Promise<{ tile: TileRef; actions: PlayerActions } | null> {
+    if (!this.myPlayer) {
+      return null;
+    }
+
+    const candidates: TileRef[] = [
+      originTile,
+      ...this.attackTileCandidates(originTile),
+    ];
+    for (const candidate of candidates) {
+      const actions = await this.myPlayer.actions(candidate);
+      const isGround = actions.canAttack;
+      const isBoat = this.canAutoBoat(actions, candidate);
+      const matches =
+        mode === "ground"
+          ? isGround
+          : mode === "boat"
+            ? isBoat
+            : isGround || isBoat;
+      if (matches) {
+        return { tile: candidate, actions };
+      }
+    }
+    return null;
+  }
+
+  private attackTileCandidates(originTile: TileRef): TileRef[] {
+    const candidateDistances: Array<{ tile: TileRef; d2: number }> = [];
+    const nearbyTiles = this.gameView.circleSearch(
+      originTile,
+      ClientGameRunner.ATTACK_TARGET_SEARCH_RADIUS,
+      (tile, d2) =>
+        tile !== originTile &&
+        this.gameView.isLand(tile) &&
+        d2 <=
+          ClientGameRunner.ATTACK_TARGET_SEARCH_RADIUS *
+            ClientGameRunner.ATTACK_TARGET_SEARCH_RADIUS,
+    );
+
+    for (const tile of nearbyTiles) {
+      candidateDistances.push({
+        tile,
+        d2: this.gameView.euclideanDistSquared(originTile, tile),
+      });
+    }
+
+    candidateDistances.sort((a, b) => a.d2 - b.d2);
+    return candidateDistances.map((item) => item.tile);
   }
 
   private canAutoBoat(actions: PlayerActions, tile: TileRef): boolean {
